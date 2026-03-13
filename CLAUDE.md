@@ -98,7 +98,6 @@ All API calls go through `YnabClient.withErrorHandling()` which catches errors a
 ## API Limitations
 
 YNAB API does not support:
-- Creating categories or category groups
 - Creating payees
 - Creating or updating accounts (beyond initial creation)
 

@@ -15,6 +15,8 @@ const toolRegistry = [
   { name: 'list_categories', description: 'List all category groups and categories in a budget' },
   { name: 'get_category', description: 'Get detailed information about a specific category' },
   { name: 'update_category', description: 'Update category name, note, group, or goal target' },
+  { name: 'create_category', description: 'Create a new category in a category group' },
+  { name: 'create_category_group', description: 'Create a new category group' },
   { name: 'update_month_category', description: 'Set the budgeted amount for a category in a specific month' },
   { name: 'list_transactions', description: 'List transactions with optional filtering' },
   { name: 'get_transaction', description: 'Get detailed information about a specific transaction' },
@@ -165,6 +167,40 @@ server.tool(
     if (goalTarget !== undefined) updateData.goal_target = amountToMilliunits(goalTarget);
     return currencyResponse(await client.updateCategory(categoryId, { category: updateData }, budgetId));
   }
+);
+
+server.tool(
+  'create_category',
+  'Create a new category in a category group',
+  {
+    name: z.string().describe('Category name'),
+    categoryGroupId: z.string().describe('Category group ID to create the category in'),
+    note: z.string().optional().describe('Category note'),
+    goalTarget: z.number().optional().describe('Goal target amount in dollars'),
+    goalTargetDate: z.string().optional().describe('Goal target date (YYYY-MM-DD)'),
+    budgetId: z.string().optional().describe('Budget ID (uses default if not specified)'),
+  },
+  async ({ name, categoryGroupId, note, goalTarget, goalTargetDate, budgetId }) => {
+    const categoryData: Record<string, unknown> = {
+      name: name.trim(),
+      category_group_id: categoryGroupId,
+    };
+    if (note !== undefined) categoryData.note = note;
+    if (goalTarget !== undefined) categoryData.goal_target = amountToMilliunits(goalTarget);
+    if (goalTargetDate !== undefined) categoryData.goal_target_date = goalTargetDate;
+    return currencyResponse(await client.createCategory({ category: categoryData }, budgetId));
+  }
+);
+
+server.tool(
+  'create_category_group',
+  'Create a new category group',
+  {
+    name: z.string().describe('Category group name (max 50 characters)'),
+    budgetId: z.string().optional().describe('Budget ID (uses default if not specified)'),
+  },
+  async ({ name, budgetId }) =>
+    currencyResponse(await client.createCategoryGroup({ category_group: { name: name.trim() } }, budgetId))
 );
 
 server.tool(

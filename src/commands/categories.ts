@@ -95,6 +95,84 @@ export function createCategoriesCommand(): Command {
     );
 
   cmd
+    .command('create')
+    .description('Create a new category')
+    .requiredOption('--name <name>', 'Category name')
+    .requiredOption('--group-id <id>', 'Category group ID to create the category in')
+    .option('--note <note>', 'Category note')
+    .option('--goal-target <amount>', 'Goal target amount in dollars', parseFloat)
+    .option('--goal-target-date <date>', 'Goal target date (e.g. 2026-12-01)')
+    .option('-b, --budget <id>', 'Budget ID')
+    .action(
+      withErrorHandling(
+        async (
+          options: {
+            name: string;
+            groupId: string;
+            note?: string;
+            goalTarget?: number;
+            goalTargetDate?: string;
+            budget?: string;
+          } & CommandOptions
+        ) => {
+          if (options.name.trim() === '') {
+            throw new YnabCliError('Category name cannot be empty or whitespace', 400);
+          }
+
+          const categoryData: {
+            name: string;
+            category_group_id: string;
+            note?: string;
+            goal_target?: number;
+            goal_target_date?: string;
+          } = {
+            name: options.name.trim(),
+            category_group_id: options.groupId,
+          };
+
+          if (options.note !== undefined) {
+            categoryData.note = options.note;
+          }
+          if (options.goalTarget !== undefined) {
+            categoryData.goal_target = amountToMilliunits(options.goalTarget);
+          }
+          if (options.goalTargetDate !== undefined) {
+            categoryData.goal_target_date = parseDate(options.goalTargetDate);
+          }
+
+          const category = await client.createCategory({ category: categoryData }, options.budget);
+          outputJson(category);
+        }
+      )
+    );
+
+  cmd
+    .command('create-group')
+    .description('Create a new category group')
+    .requiredOption('--name <name>', 'Category group name (max 50 characters)')
+    .option('-b, --budget <id>', 'Budget ID')
+    .action(
+      withErrorHandling(
+        async (
+          options: {
+            name: string;
+            budget?: string;
+          } & CommandOptions
+        ) => {
+          if (options.name.trim() === '') {
+            throw new YnabCliError('Category group name cannot be empty or whitespace', 400);
+          }
+
+          const group = await client.createCategoryGroup(
+            { category_group: { name: options.name.trim() } },
+            options.budget
+          );
+          outputJson(group);
+        }
+      )
+    );
+
+  cmd
     .command('budget')
     .description('Set category budgeted amount for a month (overrides existing amount)')
     .argument('<id>', 'Category ID')
