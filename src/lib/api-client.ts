@@ -2,6 +2,7 @@ import * as ynab from 'ynab';
 import { config } from './config.js';
 import { YnabCliError, sanitizeApiError } from './errors.js';
 import { auth } from './auth.js';
+import { history, createHistoryEntry } from './history.js';
 
 type TransactionTypeFilter = 'uncategorized' | 'unapproved' | undefined;
 
@@ -129,14 +130,20 @@ export class YnabClient {
   ) {
     const api = await this.getApi();
     const id = await this.getBudgetId(budgetId);
+    const before = await api.categories.getCategoryById(id, categoryId);
+    const beforeState = { budgeted: before.data.category.budgeted };
     const response = await api.categories.updateMonthCategory(id, month, categoryId, data);
+    await history.add(createHistoryEntry('update_month_category', id, categoryId, beforeState, month));
     return response.data.category;
   }
 
   async updateCategory(categoryId: string, data: ynab.PatchCategoryWrapper, budgetId?: string) {
     const api = await this.getApi();
     const id = await this.getBudgetId(budgetId);
+    const before = await api.categories.getCategoryById(id, categoryId);
+    const beforeState = extractCategoryState(before.data.category);
     const response = await api.categories.updateCategory(id, categoryId, data);
+    await history.add(createHistoryEntry('update_category', id, categoryId, beforeState));
     return response.data.category;
   }
 
@@ -160,7 +167,10 @@ export class YnabClient {
   async updatePayee(payeeId: string, data: ynab.PatchPayeeWrapper, budgetId?: string) {
     const api = await this.getApi();
     const id = await this.getBudgetId(budgetId);
+    const before = await api.payees.getPayeeById(id, payeeId);
+    const beforeState = { name: before.data.payee.name };
     const response = await api.payees.updatePayee(id, payeeId, data);
+    await history.add(createHistoryEntry('update_payee', id, payeeId, beforeState));
     return response.data.payee;
   }
 
@@ -291,7 +301,11 @@ export class YnabClient {
     const api = await this.getApi();
     const id = await this.getBudgetId(budgetId);
     const response = await api.transactions.createTransaction(id, transactionData);
-    return response.data.transaction;
+    const tx = response.data.transaction;
+    if (tx) {
+      await history.add(createHistoryEntry('create_transaction', id, tx.id));
+    }
+    return tx;
   }
 
   async updateTransaction(
@@ -301,7 +315,10 @@ export class YnabClient {
   ) {
     const api = await this.getApi();
     const id = await this.getBudgetId(budgetId);
+    const before = await api.transactions.getTransactionById(id, transactionId);
+    const beforeState = extractTransactionState(before.data.transaction);
     const response = await api.transactions.updateTransaction(id, transactionId, transactionData);
+    await history.add(createHistoryEntry('update_transaction', id, transactionId, beforeState));
     return response.data.transaction;
   }
 
@@ -322,7 +339,10 @@ export class YnabClient {
   async deleteTransaction(transactionId: string, budgetId?: string) {
     const api = await this.getApi();
     const id = await this.getBudgetId(budgetId);
+    const before = await api.transactions.getTransactionById(id, transactionId);
+    const beforeState = extractTransactionState(before.data.transaction);
     const response = await api.transactions.deleteTransaction(id, transactionId);
+    await history.add(createHistoryEntry('delete_transaction', id, transactionId, beforeState));
     return response.data.transaction;
   }
 
@@ -359,10 +379,12 @@ export class YnabClient {
   async deleteScheduledTransaction(scheduledTransactionId: string, budgetId?: string) {
     const api = await this.getApi();
     const id = await this.getBudgetId(budgetId);
+    // Note: scheduled transaction deletion is not undoable (YNAB API cannot create scheduled transactions)
     const response = await api.scheduledTransactions.deleteScheduledTransaction(
       id,
       scheduledTransactionId
     );
+    await history.add(createHistoryEntry('delete_scheduled_transaction', id, scheduledTransactionId));
     return response.data.scheduled_transaction;
   }
 
@@ -400,6 +422,48 @@ export class YnabClient {
 
     return await response.json();
   }
+}
+
+function extractTransactionState(tx: {
+  id: string;
+  account_id: string;
+  date: string;
+  amount: number;
+  payee_id?: string | null;
+  payee_name?: string | null;
+  category_id?: string | null;
+  memo?: string | null;
+  cleared?: string;
+  approved?: boolean;
+  flag_color?: string | null;
+}): Record<string, unknown> {
+  return {
+    id: tx.id,
+    account_id: tx.account_id,
+    date: tx.date,
+    amount: tx.amount,
+    payee_id: tx.payee_id,
+    payee_name: tx.payee_name,
+    category_id: tx.category_id,
+    memo: tx.memo,
+    cleared: tx.cleared,
+    approved: tx.approved,
+    flag_color: tx.flag_color,
+  };
+}
+
+function extractCategoryState(cat: {
+  name: string;
+  note?: string | null;
+  category_group_id: string;
+  goal_target?: number | null;
+}): Record<string, unknown> {
+  return {
+    name: cat.name,
+    note: cat.note,
+    category_group_id: cat.category_group_id,
+    goal_target: cat.goal_target,
+  };
 }
 
 export const client = new YnabClient();

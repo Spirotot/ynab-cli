@@ -13,6 +13,7 @@ import { createPayeesCommand } from './commands/payees.js';
 import { createMonthsCommand } from './commands/months.js';
 import { createApiCommand } from './commands/api.js';
 import { createMcpCommand } from './commands/mcp.js';
+import { createHistoryCommand } from './commands/history.js';
 
 declare const __VERSION__: string;
 
@@ -41,5 +42,6 @@ program.addCommand(createPayeesCommand());
 program.addCommand(createMonthsCommand());
 program.addCommand(createApiCommand());
 program.addCommand(createMcpCommand());
+program.addCommand(createHistoryCommand());
 
 program.parse();

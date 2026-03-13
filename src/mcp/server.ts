@@ -5,6 +5,7 @@ import { client } from '../lib/api-client.js';
 import { auth } from '../lib/auth.js';
 import { YnabCliError, sanitizeApiError, sanitizeErrorMessage } from '../lib/errors.js';
 import { amountToMilliunits, applyFieldSelection, applyTransactionFilters, convertMilliunitsToAmounts, summarizeTransactions, findTransferCandidates, type SummaryTransaction, type TransactionLike } from '../lib/utils.js';
+import { history } from '../lib/history.js';
 
 const toolRegistry = [
   { name: 'list_budgets', description: 'List all budgets in the YNAB account' },
@@ -39,6 +40,8 @@ const toolRegistry = [
   { name: 'raw_api_call', description: 'Make a direct YNAB API call' },
   { name: 'get_user', description: 'Get information about the authenticated user' },
   { name: 'check_auth', description: 'Check if YNAB authentication is configured' },
+  { name: 'list_action_history', description: 'List recent write operations with undo status' },
+  { name: 'undo_action', description: 'Undo a previous write operation (most recent or by ID)' },
 ];
 
 const server = new McpServer({
@@ -535,6 +538,95 @@ server.tool(
   'Check if YNAB authentication is configured',
   {},
   async () => jsonResponse({ authenticated: await auth.isAuthenticated() })
+);
+
+server.tool(
+  'list_action_history',
+  'List recent write operations with undo status',
+  {
+    limit: z.number().optional().describe('Maximum number of entries to return'),
+  },
+  async ({ limit }) => {
+    let entries = await history.getAll();
+    if (limit && limit > 0) entries = entries.slice(0, limit);
+    const NON_UNDOABLE = new Set(['delete_scheduled_transaction']);
+    return jsonResponse(
+      entries.map((e) => ({
+        id: e.id,
+        timestamp: e.timestamp,
+        operation: e.operation,
+        entityId: e.entityId,
+        status: e.status,
+        canUndo: e.status === 'success' && !NON_UNDOABLE.has(e.operation),
+      }))
+    );
+  }
+);
+
+server.tool(
+  'undo_action',
+  'Undo a previous write operation (most recent or by ID)',
+  {
+    entryId: z.string().optional().describe('History entry ID to undo (defaults to most recent)'),
+  },
+  async ({ entryId }) => {
+    const entry = entryId ? await history.get(entryId) : await history.getMostRecent();
+    if (!entry) {
+      throw new YnabCliError(
+        entryId ? `History entry ${entryId} not found` : 'No undoable operations in history',
+        404
+      );
+    }
+    if (entry.status === 'undone') throw new YnabCliError('Already undone', 400);
+    if (entry.status === 'undo_failed') throw new YnabCliError('Previous undo attempt failed', 400);
+
+    const NON_UNDOABLE = new Set(['delete_scheduled_transaction']);
+    if (NON_UNDOABLE.has(entry.operation)) {
+      throw new YnabCliError(`Cannot undo ${entry.operation}`, 400);
+    }
+
+    try {
+      let result: unknown;
+      switch (entry.operation) {
+        case 'create_transaction':
+          result = await client.deleteTransaction(entry.entityId, entry.budgetId);
+          break;
+        case 'update_transaction':
+          if (!entry.beforeState) throw new YnabCliError('No before state', 400);
+          result = await client.updateTransaction(entry.entityId, { transaction: entry.beforeState }, entry.budgetId);
+          break;
+        case 'delete_transaction':
+          if (!entry.beforeState) throw new YnabCliError('No before state', 400);
+          result = await client.createTransaction({ transaction: entry.beforeState }, entry.budgetId);
+          break;
+        case 'update_category':
+          if (!entry.beforeState) throw new YnabCliError('No before state', 400);
+          result = await client.updateCategory(entry.entityId, { category: entry.beforeState }, entry.budgetId);
+          break;
+        case 'update_month_category':
+          if (!entry.beforeState || !entry.month) throw new YnabCliError('No before state or month', 400);
+          result = await client.updateMonthCategory(
+            entry.month, entry.entityId,
+            { category: { budgeted: entry.beforeState.budgeted as number } },
+            entry.budgetId
+          );
+          break;
+        case 'update_payee':
+          if (!entry.beforeState) throw new YnabCliError('No before state', 400);
+          result = await client.updatePayee(
+            entry.entityId,
+            { payee: { name: entry.beforeState.name as string } },
+            entry.budgetId
+          );
+          break;
+      }
+      await history.updateStatus(entry.id, 'undone');
+      return currencyResponse({ message: `Undone: ${entry.operation}`, undone_entry: entry.id, result });
+    } catch (error) {
+      await history.updateStatus(entry.id, 'undo_failed');
+      throw error;
+    }
+  }
 );
 
 server.tool(
