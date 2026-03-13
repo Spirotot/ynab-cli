@@ -1,0 +1,12 @@
+{
+  "name": "ynab",
+  "version": "1.0.0",
+  "description": "YNAB budget management for Claude Code — query budgets, manage transactions, and track spending via CLI and MCP tools",
+  "author": {
+    "name": "Stephen Dolan",
+    "url": "https://github.com/stephendolan"
+  },
+  "repository": "https://github.com/stephendolan/ynab-cli",
+  "license": "MIT",
+  "keywords": ["finance", "ynab", "budgeting", "transactions"]
+}

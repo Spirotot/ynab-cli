@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ynab auth status 2>/dev/null | grep -q '\"authenticated\": true' || echo 'ynab-cli: Not authenticated. Run: ynab auth login'"
+          }
+        ]
+      }
+    ]
+  }
+}
