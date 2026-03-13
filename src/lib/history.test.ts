@@ -3,7 +3,6 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { HistoryStore, createHistoryEntry } from './history.js';
-import type { HistoryEntry } from './history.js';
 
 describe('HistoryStore', () => {
   let tmpDir: string;
