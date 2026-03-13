@@ -10,7 +10,7 @@
         "commander": "^14.0.2",
         "conf": "^15.0.2",
         "dayjs": "^1.11.19",
-        "ynab": "^2.10.0",
+        "ynab": "^4.0.0",
         "zod": "^3.25.0",
       },
       "devDependencies": {
@@ -553,7 +553,7 @@
 
     "wrappy": ["wrappy@1.0.2", "", {}, "sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ=="],
 
-    "ynab": ["ynab@2.10.0", "", { "dependencies": { "fetch-ponyfill": "^7.1.0" } }, "sha512-zDH++4mbFpVDbDW1qIYS3pG3sPVtdth7c45aEfU7pVNqIcK6aVzK8eSksyOarrzaPKSq4OA9AXq1ixC7WGdpow=="],
+    "ynab": ["ynab@4.0.0", "", { "dependencies": { "fetch-ponyfill": "^7.1.0" } }, "sha512-D3GWDmc/h4Z1h7YYxIDp/uUJm56vodTwgK468FsvSaLZzptYoRYEGvgQKae+HvZKmBfjIRdIBE95yjtxOZzClg=="],
 
     "zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 

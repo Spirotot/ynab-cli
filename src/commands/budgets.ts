@@ -48,7 +48,7 @@ export function createBudgetsCommand(): Command {
     .action(
       withErrorHandling(async (id: string) => {
         const result = await client.getBudgets();
-        const budget = result?.budgets.find((b) => b.id === id);
+        const budget = result?.budgets.find((b: { id: string }) => b.id === id);
 
         if (!budget) {
           throw new YnabCliError(`Budget with ID ${id} not found`, 404);

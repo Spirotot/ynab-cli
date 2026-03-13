@@ -70,16 +70,16 @@ export function createCategoriesCommand(): Command {
 
           const updateData: {
             name?: string;
-            note?: string | null;
+            note?: string;
             category_group_id?: string;
-            goal_target?: number | null;
+            goal_target?: number;
           } = {};
 
           if (options.name !== undefined) {
             updateData.name = options.name.trim();
           }
           if (options.note !== undefined) {
-            updateData.note = options.note.trim() || null;
+            updateData.note = options.note.trim() || undefined;
           }
           if (options.categoryGroupId !== undefined) {
             updateData.category_group_id = options.categoryGroupId;
